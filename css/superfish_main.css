@@ -1,0 +1,79 @@
+
+/*** ESSENTIAL STYLES ***/
+.sf-main-menu, .sf-main-menu * {
+    margin:0;
+    padding:0;
+    list-style:none;
+}
+.sf-main-menu {
+    line-height:20px;
+}
+
+.sf-main-menu ul {
+    position:absolute;
+    top:-999em;
+    width:134px; /*10em; left offset of submenus need to match (see below) */
+}
+.sf-main-menu ul li {
+    width:100%;
+}
+
+.sf-main-menu li {
+    float:left;
+    position:relative;
+}
+.sf-main-menu a {
+    display:block;
+    position:relative;
+}
+.sf-main-menu li:hover ul {
+    left:-4px;
+    top:20px;  /*match top ul list item height */
+    z-index:99;
+}
+ul.sf-main-menu li:hover li ul {
+    top:-999em;
+}
+ul.sf-main-menu li li:hover ul {
+    left:134px; /* match ul width */
+    top:2px;
+}
+
+ul.sf-main-menu li li:hover li ul{
+    top:-999em;
+}
+ul.sf-main-menu li li li:hover ul {
+    left:134px; /* match ul width */
+    top:2px;
+}
+
+/*** DEMO SKIN ***/
+.sf-main-menu {
+    float:left;
+    margin-bottom:2px;
+}
+.sf-main-menu a {
+    padding:0 1em;
+    text-decoration:none;
+}
+.sf-main-menu a, .sf-main-menu a:visited  { /* visited pseudo selector so IE6 applies text colour*/
+    color:black;
+    font-weight: normal;
+}
+.sf-main-menu li {
+    font-size: 12px;
+    border:3px solid #F0F0F0;
+    margin: 2px;
+    background:white;/*#BDD2FF;*/
+}
+.sf-main-menu li li {
+    background:white;/*#AABDE6*/
+}
+.sf-main-menu li li li {
+    background:white;/*#9AAEDB;*/
+}
+.sf-main-menu li:hover, 
+.sf-main-menu a:focus, .sf-main-menu a:active {
+    background:whitesmoke;/* #1C2929 #CFDEFF;*/
+    outline:0;
+}

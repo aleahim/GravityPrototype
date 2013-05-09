@@ -1,0 +1,374 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
+        <script src="js/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/jquery.tmpl.js" type="text/javascript" charset="utf-8"></script>
+        <script type="text/javascript">
+            var task_image = 'http://cdn.portableapps.com/TaskCoachPortable_128.png';
+            var question_image = 'http://www.sacfla.org/question2-724662.jpg';
+            var calls_image = 'http://blogs.menshealth.com/married-life/files/2010/11/telephone.jpg';
+            var url = 'mailto:NAME@gravitycontrol.net'
+            var ID;
+            var year;
+            var week;
+            var month;
+            var day;
+            var date;
+
+            function ClearText(id) {
+                $('#'+id).attr('value' , '');
+            }
+
+            function save() {
+                name = $('#person_name').attr('value');
+                ID = $('#person_id').attr('value');
+                year = $('#year').attr('value');
+                week = $('#week').attr('value');
+                month = $('#month').attr('value');
+                day = $('#day').attr('value');
+                date = new Date(year, month, day, 0, 0, 0, 0);
+                date = date.getDate() + '-' + date.getDay() + '-' + date.getFullYear();
+                
+                url = url.replace('NAME', ID);
+                
+                insert_tasks();
+                insert_questions();
+                insert_calls();
+            }
+            
+            function insert_tasks() {
+                $('#xml').html('');
+
+                $('#tasks tr').each(function(k, v) {
+                    if ($(v).find('th').length) {
+                        return;
+                    }
+
+                    var data = $(v).find('td input');
+
+                    var skip = 0;
+                    $(data).each(function(k,v) {
+                        if (!v) {
+                            skip = 1;
+                            return;
+                        }
+                    });
+
+                    if (skip) {
+                        return;
+                    }
+                    
+                    title = $(data[2]).attr('value');
+                    desc = $(data[2]).attr('value');
+
+                    var attrs = new Array();
+                    attrs.push(ID);
+                    attrs.push(name);
+                    attrs.push('Year_'+year);
+                    attrs.push('Month_'+month);
+                    attrs.push('Day_'+day);
+                    attrs.push('Week_'+week);
+                    attrs.push($(data[0]).attr('value'));
+                    attrs.push($(data[1]).attr('value'));
+                    attrs.push($(data[3]).attr('value'));
+                    attrs.push($(data[5]).attr('value'));
+
+                    var num1 = $(data[4]).attr('value');
+                    var num2 = 0;
+                    
+                    client_insert('task', task_image, url, title, desc, num1, num2, date, attrs);
+                });
+
+                server_insert(135);
+            }
+
+            function insert_questions() {
+                $('#xml').html('');
+
+                $('#questions tr').each(function(k, v) {
+                    if ($(v).find('th').length) {
+                        return;
+                    }
+
+                    var data = $(v).find('td input');
+
+                    var skip = 0;
+                    $(data).each(function(k,v) {
+                        if (!$(v).attr('value')) {
+                            skip = 1;
+                            return;
+                        }
+                    });
+
+                    if (skip) {
+                        return;
+                    }
+
+                    title = $(data[0]).attr('value');
+                    desc = $(data[0]).attr('value');
+
+                    var attrs = new Array();
+                    attrs.push(ID);
+                    attrs.push(name);
+                    attrs.push('Year_'+year);
+                    attrs.push('Month_'+month);
+                    attrs.push('Day_'+day);
+                    attrs.push('Week_'+week);
+
+                    var num1 = 0;
+                    var num2 = 0;
+
+                    client_insert('task', question_image, url, title, desc, num1, num2, date, attrs);
+                });
+
+                server_insert(136);
+            }
+
+            function insert_calls() {
+                $('#xml').html('');
+
+                $('#calls tr').each(function(k, v) {
+                    if ($(v).find('th').length) {
+                        return;
+                    }
+
+                    var data = $(v).find('td input');
+
+                    var skip = 0;
+                    $(data).each(function(k,v) {
+                        if (!$(v).attr('value')) {
+                            skip = 1;
+                            return;
+                        }
+                    });
+
+                    if (skip) {
+                        return;
+                    }
+
+                    title = $(data[0]).attr('value');
+                    desc = $(data[0]).attr('value');
+
+                    var attrs = new Array();
+                    attrs.push(ID);
+                    attrs.push(name);
+                    attrs.push('Year_'+year);
+                    attrs.push('Month_'+month);
+                    attrs.push('Day_'+day);
+                    attrs.push('Week_'+week);
+                    attrs.push($(data[1]).attr('value'));
+
+                    var num1 = 0;
+                    var num2 = 0;
+
+                    client_insert('task', calls_image, url, title, desc, num1, num2, date, attrs);
+                });
+
+                server_insert(137);
+            }
+
+            function server_insert(feed_id) {
+                var feed_data = $('#xml').html().replace(/\r\n|\r|\n/, '');
+                console.log(feed_id, feed_data);
+                $.post('http://elido.gravitycontrol.net/backend/request.php?do=feed_append', { 'id' : feed_id, 'data' : feed_data } , function(data) {
+                    alert("Saved.");
+                    console.log(data);
+                });
+                $('#xml').html('');
+            }
+
+            function client_insert(type, image, url, title, desc, num1, num2, date, attrs) {
+                var data_id = 0;
+                var data_processed_id = 0;
+
+                type = encodeURIComponent(type);
+                image = encodeURIComponent(image);
+                url = encodeURIComponent(url);
+                title = encodeURIComponent(title);
+                desc = encodeURIComponent(desc);
+                
+                $.tmpl('xml_item', {
+                    "data_id": data_id,
+                    "data_processed_id": data_processed_id,
+                    "type": type,
+                    "image": image,
+                    "url": url,
+                    "title": title,
+                    "desc": desc
+                }).appendTo('#xml');
+
+                if (attrs) {
+                    for (var b in attrs) {
+                        var attr_data = attrs[b];
+
+                        if (attr_data) {
+                            attr_data = encodeURIComponent(attr_data);
+                            $.tmpl('xml_gravity', {
+                                "name": attr_data,
+                                "value": 1,
+                                "category": 'general'
+                            }).appendTo('#xml');
+                        }
+                    }
+                }
+
+                if (num1) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'num1',
+                        "value": num1,
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+                if (num2) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'num2',
+                        "value": num2,
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+                if (date) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'date',
+                        "value": date.replace(':', '.'),
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+
+                $('#xml').html($('#xml').html()+'@');
+            }
+
+            function duplicate(id) {
+                var item = $(id + ' tr:nth-child(2)').clone();
+                item.appendTo(id);
+                item.find('input').attr('value', '');
+            }
+            
+            $(document).ready(function() {
+                $.template('xml_item', '${data_id},${data_processed_id},${type},${image},${url},${title},${desc},');
+                $.template('xml_gravity', '${name}:${value}:${category};');
+            });
+        </script>
+        <link rel="stylesheet" type="text/css" href="css/css-main.css"/>
+        <style type="text/css">
+
+        </style>
+        <title>Gravity 2 ALPHA</title>
+    </head>
+    <body>
+        <input type="button" value="Save" onclick="save();" />
+        <div class="frame" style="width:1000px;">
+            <div class="headline" style="width:1000px;">General</div>
+            <div class="content" style="width:1000px;">
+                <table id="general">
+                    <tr>
+                        <th>
+                            ID
+                        </th>
+                        <th>
+                            Name
+                        </th>
+                        <th>
+                            Year
+                        </th>
+                        <th>
+                            Week
+                        </th>
+                        <th>
+                            Month
+                        </th>
+                        <th>
+                            Day
+                        </th>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" value="" id="person_id" />
+                        </td>
+                        <td>
+                            <input type="text" value="" id="person_name" />
+                        </td>
+                        <td>
+                            <input type="text" value="" id="year" />
+                        </td>
+                        <td>
+                            <input type="text" value="" id="week" />
+                        </td>
+                        <td>
+                            <input type="text" value="" id="month" />
+                        </td>
+                        <td>
+                            <input type="text" value="" id="day" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <br />
+        <div class="frame" style="width:1000px;">
+            <div class="headline" style="width:1000px;">Tasks</div>
+            <div class="content" style="width:1000px;">
+                <table id="tasks">
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Project ID</th>
+                        <th>Task Desc</th>
+                        <th>Task Status</th>
+                        <th>Real Time</th>
+                        <th>Docs</th>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="" /></td>
+                        <td><input type="text" value="" /></td>
+                        <td><input type="text" value="" /></td>
+                        <td><input type="text" value="" /></td>
+                        <td><input type="text" value="" /></td>
+                        <td><input type="text" value="" /></td>
+                    </tr>
+                </table>
+                <input type="button" onclick="duplicate('#tasks');" value="+" />
+            </div>
+        </div>
+        <br />
+        <div class="frame" style="width:1000px;">
+            <div class="headline" style="width:1000px;">Въпроси към ръководството</div>
+            <div class="content" style="width:1000px;">
+                <table id="questions">
+                    <tr>
+                        <th>Заглавие</th>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" value="" />
+                        </td>
+                    </tr>
+                </table>
+                <input type="button" onclick="duplicate('#questions');" value="+" />
+            </div>
+        </div>
+        <br />
+        <div class="frame" style="width:1000px;">
+            <div class="headline" style="width:1000px;">Приети обаждания</div>
+            <div class="content" style="width:1000px;">
+                <table id="calls">
+                    <tr>
+                        <th>Заглавие</th>
+                        <th>Разговор със</th>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="text" value="" />
+                        </td>
+                        <td>
+                            <input type="text" value="" />
+                        </td>
+                    </tr>
+                </table>
+                <input type="button" onclick="duplicate('#calls');" value="+" />
+            </div>
+        </div>
+        <input type="button" value="Save" onclick="save();" />
+        <div id="xml" style="display:none"></div>
+    </body>
+</html>

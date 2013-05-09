@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Report</title>
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
+        <script src="http://libs.gravitycontrol.net/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="http://libs.gravitycontrol.net/jquery.tmpl.js" type="text/javascript" charset="utf-8"></script>
+        <script src="http://libs.gravitycontrol.net/goog/base.js" type="text/javascript" charset="utf-8"></script>
+        <script src="http://libs.gravitycontrol.net/jquery.blockUI.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="js/templates.js" type="text/javascript" charset="utf-8"></script>
+        <script type='text/javascript' src='js/report.js'></script>
+
+        <script type="text/javascript" charset="utf-8">
+            goog.require('goog.iter');
+            goog.require('goog.structs');
+            goog.require('goog.structs.Map');
+            goog.require('goog.dispose');
+            goog.require('goog.events');
+            goog.require('goog.events.EventType');            
+            goog.require('goog.net.ImageLoader');
+        </script>  
+
+        <link rel="stylesheet" type="text/css" href="css/css-main.css"/>
+        <style type='text/css'>
+            *{font-family: Verdana;} td, th {padding:5px;border-bottom:1px solid #cfcfcf;}.report_color_box, #report img { width: 30px; height: 30px; }
+            .table_report{ width: 100%; }
+        </style>
+    </head>
+    <body>
+        <div id="report" style="margin-bottom:160px;">
+
+        </div>
+        <div class="frame">
+            <div class="headline">DATA OBJECTS EXPORT IMPORT</div>
+            <div class="content">
+                <input type="button" value="SAVE" />
+                <input type="button" value="EXPORT CSV" onclick="export_csv('#items')" />
+                <input type="file" id="items_file" />
+                <input type="button" value="IMPORT CSV" onclick="readBlob('items')" />
+                (in development G0120)
+                <textarea id="items" style="width:100%; height: 350px;"></textarea>
+                <input id="items_fields" style="width:100%;" />
+            </div>
+        </div>
+        <div class="frame">
+            <div class="headline">ATTRIBUTES EXPORT IMPORT</div>
+            <div class="content">
+                <input type="button" value="SAVE" />
+                <input type="button" value="EXPORT CSV" onclick="export_csv('#attrs')" />
+                <input type="file" id="attrs_file" />
+                <input type="button" value="IMPORT CSV" onclick="readBlob('attrs')" />
+                (in development G0120)
+                <textarea id="attrs" style="width:100%; height: 350px;"></textarea>
+                <input id="attrs_fields" style="width:100%;" />
+            </div>
+        </div>
+
+        <div id="report_item_edit" style=" ;background-color: #FFF;  position: absolute; display: none; width:1012px; padding: 5px; border: 2px solid green;">
+            <div class="frame">
+                <div class="headline" style="font-size:15px;">DATA OBJECT:</div>
+                <div class="content">
+                    <input type="button" value="SAVE" />
+                    <input type="button" value="EXPORT CSV" onclick="export_csv('#attrs')" />
+                    <input type="file" id="attrs_file" />
+                    <input type="button" value="IMPORT CSV" onclick="readBlob('attrs')" />
+                    (in development G0120)
+                    <br />
+                    <textarea id="item_info" style="width:99%; height: 100px;"></textarea>
+                </div>
+            </div>
+            <br />
+            <div class="frame">
+                <div class="headline" style="font-size:15px;">DATA OBJECT ATTRIBUTES:</div>
+                <div class="content">
+                    <input type="button" value="SAVE" />
+                    <input type="button" value="EXPORT CSV" onclick="export_csv('#attrs')" />
+                    <input type="file" id="attrs_file" />
+                    <input type="button" value="IMPORT CSV" onclick="readBlob('attrs')" />
+                    (in development G0120)
+                    <br />
+                    <textarea id="item_attrs" style="width:99%; height: 100px;"></textarea>
+                </div>
+            </div> <input type="button" value="Close" onclick="closePopUp()" />
+        </div>	  
+    </body> 
+</html>     

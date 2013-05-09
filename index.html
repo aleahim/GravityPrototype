@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
+        <script src="http://libs.gravitycontrol.net/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="http://libs.gravitycontrol.net/jquery.tmpl.js" type="text/javascript" charset="utf-8"></script>
+
+        <link rel="stylesheet" type="text/css" href="css/css-main.css"/>
+
+        <title>GRAVITY CONTROL PROTOTYPE</title>
+    </head>
+    <body>
+        <script type="text/javascript">
+            var db;
+            var gateway;
+            var columns = {
+                'feeds' : ['data_xml_feed_id','title','time_added','image','type','active','notes'],
+                'items' : ['data_xml_feed_id','data_xml_item_id','type','image','url','title','desc'],
+                'attrs' : ['data_xml_feed_id','data_xml_item_id','data_xml_attr_id','attr_type','attr_name','attr_value']
+            }
+
+            function add_words() {
+                if ($('#load_gravity_attributes').val()) {
+                    GEarrayffs = $('#load_gravity_attributes').val().split(/\r\n|\r|\n/);
+
+                    for (i in GEarrayffs) {
+                        var arr = GEarrayffs[i];
+
+                        var word = arr.split(',');
+
+                        $.getJSON(gateway+'&do=add_word&word_group_id=1&word='+word, function(data) {
+                    
+                        });
+
+                        $('#load_gravity_attributes').val('');
+                    }
+                }
+            }
+            function update_list(url, dest) {
+                $.getJSON(gateway+'&'+url, function(data) {
+                    var items = [];
+
+                    $(data).each(function(key, val) {
+                        if (val[1] == '1') {
+                            val[1] = '';
+                        }
+                        items.push('<li>' + val[0] + ' ' + val[1] + '</li>');
+                    });
+
+                    $(dest).empty();
+
+                    $('<ul/>', {
+                        html: items.join('')
+                    }).appendTo(dest);
+                });
+            }
+            function update_words() {
+                $.getJSON(gateway+'&do=list-words', function(data) {
+                    var items = [];
+
+                    $(data).each(function(key, val) {
+                        items.push('<tr><td>' + val[0] + '</td><td><a href="javascript:delete_word(\''+val[0]+'\')">X</a></td></tr>');
+                    });
+
+                    $('#words_list').empty();
+
+                    $('<table/>', {
+                        html: items.join('')
+                    }).appendTo('#words_list');
+                });
+            }
+            function delete_word(word) {
+                $.get(gateway+'&do=delete_word&word='+word, function() {});
+            }
+            function update_resources() {
+                $.getJSON(gateway+'&do=list', function(data) {
+                    return;
+                    var found;
+                    var found_id = new Array();
+                    
+                    $(data).each(function(key, val) {
+                        found = false;
+
+                        $('#data_list table tr td input').each(function() {
+                            if ($(this).attr('value') == val[0]) {
+                                found = true;
+                            }
+                        });
+
+                        if (found == false && !val[7]) {
+                            $('#data_list table').prepend($('\
+                    <tr>\n\
+<td><a href="'+gateway+'&do=raw_data&data_id='+val[1]+'" target="_blank"><img src="'+val[4]+'" border="0" width="50" height="50" /></a></td>\n\
+<td>('+val[8]+')</td><td><a href="javascript:gravity_unactive(\''+val[0]+'\')">X</a></td><td>\n\
+<a href="javascript:feed_edit('+ val[0] +')">EDIT</a></td>\n\
+<td><a href="javascript:feed_update('+ val[10] +', '+ val[1] +')">UPDATE</a></td>\n\
+<td>' + val[3] + ' - ' + val[2] + '</td>\n\
+<td><input type="checkbox" name="load_items" id="' + val[0] + '" value="' + val[0] + '" /></td>\n\
+</tr>'))
+                        }
+
+                        found_id.push(val[0]);
+                    });
+                    
+                    $('#data_list table tr td input').each(function() {
+                        found = false
+
+                        for (var a in found_id) {
+                            var id = found_id[a];
+                            if ($(this).attr('value') == id) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if (found == false) {
+                            $(this).parent().parent().hide();
+                        }
+                    });
+
+                });
+            }
+            function show_feeds_list() {
+                $.getJSON(gateway+'&do=list', function(data) {
+                    $(data).each(function(key, val) {
+                        $('#feeds_list').prepend($('<option>').attr('value', val[0]).text(val[3] + ' - ' + val[2]));
+                    });
+                });
+            }
+
+            function gravity_unactive(id) {
+                $.get(gateway+'&do=gravity_unactive&id='+id, function() {});
+            }
+            function feed_update(group_id, by_time_id) {
+                console.log(gateway+'&do=renew-xml&group_id='+group_id+'&by_time_id='+by_time_id);
+                $.get(gateway+'&do=renew-xml&group_id='+group_id+'&by_time_id='+by_time_id, function(data) {});
+            }
+            function add_new_url() {
+                if ($('#new_url').attr('value')) {
+                    $.get(gateway+'&do=run&name='+$('#new_url').attr('value')+'&url=http://news.google.com/news?q='+$('#new_url').attr('value')+'&output=rss&num=30', function(data) {});
+
+                    $('#new_url').attr('value', '');
+                    $('#group_name').attr('value', '');
+                }
+            }
+
+            function load() {
+                var items = [];
+
+                $('input[name=load_items]').each(function() {
+                    if ($(this).attr('checked')) {
+                        items.push($(this).attr('value'));
+                    }
+                });
+
+                var actions = new Array();
+                $('input[name=load_actions]').each(function() {
+                    if ($(this).attr('checked')) {
+                        actions.push($(this).attr('id'));
+                    }
+                });
+
+                items_to_load = items.length;
+
+                var q = items.join(',');
+                var a = actions.join(',');
+                var v = $('input[name="viz"]:checked').attr('value');
+                
+                var touch = $('#touch_select :selected').attr('value');
+                window.open("gravity.html?db="+db+"&size="+$('#size :selected').text()+"&gravity_id="+q+'&action_id='+a+'&viz='+v+'&touch='+touch);
+            }
+
+
+            function update_actions() {
+                $.getJSON(gateway+'&do=list-actions', function(data) {
+                    var found;
+                    var found_id = new Array();
+
+                    $(data).each(function(key, val) {
+                        found = false;
+
+                        $('#actions_list table tr td input').each(function() {
+                            if ($(this).attr('id') == val[0]) {
+                                found = true;
+                            }
+                        });
+
+                        if (found == false) {
+                            $('#actions_list table').prepend($('<tr><td>' + val[1] + '</td><td><input type="checkbox" name="load_actions" id="' + val[0] + '" value="' + val[1] + '" /></td><td><a href="javascript:delete_action(\''+val[0]+'\')">X</a></td></tr>'))
+                        }
+
+                        found_id.push(val[0]);
+                    });
+
+                    $('#actions_list table tr td input').each(function() {
+                        found = false
+
+                        for (var a in found_id) {
+                            var id = found_id[a];
+                            if ($(this).attr('id') == id) {
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (found == false) {
+                            $(this).parent().parent().hide();
+                        }
+                    });
+
+                });
+            }
+
+            function delete_action(id) {
+                $.get(gateway+'&do=delete-cmd&id=' + id, function(data) {
+                    $('#actions_list table tr td input[id="'+id+'"]').parent().parent().hide();
+                });
+            }
+            function add_action() {
+                if (!$('#action_name').attr('value') || !$('#action_cmd').attr('value')) {
+                    return;
+                }
+                $.get(gateway+'&do=add-procedure&desc='+$('#action_name').attr('value')+'&cmd='+escape($('#action_cmd').attr('value')));
+                $('#action_name').attr('value', '');
+                $('#action_cmd').attr('value', '');
+            }
+
+            $(document).ready(function() {
+                $("textarea").keydown(function(e) {
+                    if(e.keyCode === 9) { // tab was pressed
+                        // get caret position/selection
+                        var start = this.selectionStart;
+                        var end = this.selectionEnd;
+
+                        var $this = $(this);
+                        var value = $this.val();
+
+                        // set textarea value to: text before caret + tab + text after caret
+                        $this.val(value.substring(0, start)
+                            + "\t"
+                            + value.substring(end));
+
+                        // put caret at right position again (add one for the tab)
+                        this.selectionStart = this.selectionEnd = start + 1;
+
+                        // prevent the focus lose
+                        e.preventDefault();
+                    }
+                });                
+
+                var urlParams = {};
+                (function () {
+                    var e,
+                    a = /\+/g,  // Regex for replacing addition symbol with a space
+                    r = /([^&=]+)=?([^&]*)/g,
+                    d = function (s) {
+                        return decodeURIComponent(s.replace(a, " "));
+                    },
+                    q = window.location.search.substring(1);
+
+                    while (e = r.exec(q))
+                        urlParams[d(e[1])] = d(e[2]);
+                })();
+
+                db = urlParams['db'];
+                gateway = 'php/gateway.php?db='+db;
+
+                update_resources();
+                menu_output();
+                    
+                $.template('xml_item', '${data_id},${data_processed_id},${type},${image},${url},${title},${desc},');
+                $.template('xml_gravity', '${name}:${value}:${category};');
+
+                show_feeds_list();
+
+                getdata(0, '#feeds', 'getraw_feeds');
+
+                $('#feeds_fields').attr('value', "data_xml_feed_id\ttitle\ttime_added\timage\ttype\tactive\tnotes");
+                $('#items_fields').attr('value', "data_xml_feed_id\tdata_xml_item_id\ttype\timage\turl\ttitle\tdesc");
+                $('#attrs_fields').attr('value', "data_xml_feed_id\tdata_xml_item_id\tdata_xml_attr_id\tattr_type\tattr_name\tattr_value");
+                
+                $("#save_but").on("click", sendData);
+                $("#load_but").on("click", loadData);
+    
+                loadData();
+            });
+
+            function sendData(){
+                var inputArea = $('#timeline_result').val().split("\n").join(',');
+
+                $.get(gateway + "&do=timeline_save&dates="+inputArea, function() {
+                    loadData();
+                });
+            }
+
+            function loadData() {
+                $.get(gateway + "&do=timeline_load", function(data) {
+                    $('#timeline_result').val(data.split(',').join("\n"));
+                });
+            }
+
+            function update_rows_count(textid, labelid) {
+                var data = $(textid).val().split("\n");
+
+                $(labelid).text('(' + data.length + ')');
+            }
+
+            function feed_input() {
+                var feed_id = $('#feed_id').val();
+                var feed_name = $('#feed_title').val();
+                var feed_image = $('#feed_image').val();
+                var feed_type = $('#feed_type').val();
+                var feed_date = $('#feed_date').val();
+                var feed_by_time = $('#feed_by_time_id').val();
+                var feed_active = $('#feed_active').val();
+                var feed_notes = $('#feed_notes').val();
+                
+                $.get(gateway+'&do=feed_input&id='+feed_id+'&by_time='+feed_by_time+'&notes='+feed_notes+'&active='+feed_active+'&date='+feed_date+'&name='+feed_name+'&image='+feed_image+'&type='+feed_type+'&data=', function(data) {
+                    feed_append();
+                });
+            }                
+
+            function feed_append() {
+                var feed_id = $('#feed_id').val();
+                var feed_name = $('#feed_title').val();
+                var feed_image = $('#feed_image').val();
+                var feed_type = $('#feed_type').val();
+                var feed_date = $('#feed_date').val();
+                var feed_by_time = $('#feed_by_time_id').val();
+                var feed_active = $('#feed_active').val();
+                var feed_notes = $('#feed_notes').val();
+
+                var content = $('#feed_content').val();
+
+                content = content.split(/\r\n|\r|\n/);
+
+                $('#xml').html('');
+
+                var requests = 1;
+                var count = 0;
+                for (var a in content) {
+                    count++;
+                    try {
+                        if (content[a]) {
+                            var data = content[a].split("\t");
+
+                            var data_id = data[0];
+                            var data_processed_id = data[1];
+                            var type = encodeURIComponent(data[2]).replace(',','');
+                            var image = encodeURIComponent(data[3]).replace(',','');
+                            var url = encodeURIComponent(data[4]).replace(',','');
+                            var title = encodeURIComponent(data[5]).replace(',','');
+                            var desc = encodeURIComponent(data[6]).replace(',','');
+
+                            $.tmpl('xml_item', {
+                                "data_id": data_id,
+                                "data_processed_id": data_processed_id,
+                                "type": type,
+                                "image": image,
+                                "url": url,
+                                "title": title,
+                                "desc": desc
+                            }).appendTo('#xml');
+
+                            if (data[7]) {
+                                var attr = data[7].split(';');
+                                for (var b in attr) {
+                                    var attr_data = attr[b].split(':');
+
+                                    if (attr_data.length == 3) {
+                                        var name = attr_data[0];
+                                        var value = attr_data[1];
+                                        var cat = attr_data[2];
+                                        $.tmpl('xml_gravity', {
+                                            "name": encodeURIComponent(name),
+                                            "value": encodeURIComponent(value),
+                                            "category": encodeURIComponent(cat)
+                                        }).appendTo('#xml');
+                                    }
+                                }
+                            }
+
+                            $('#xml').html($('#xml').html()+'@');
+                            
+                            if (count == 20) {
+                                var feed_data = $('#xml').html().replace(/\r\n|\r|\n/, '');
+                                $.post(gateway+'&do=feed_append', { id : feed_id, data : feed_data } , function(data) {
+                                    alert("Saved request: " + requests);
+                                    console.log(data);
+                                    requests++;
+                                });   
+                                count = 0;
+                                $('#xml').html('');
+                            }
+                        }
+                    }
+                    catch(err){
+                        alert(err);
+                    }
+                }
+                var feed_data = $('#xml').html().replace(/\r\n|\r|\n/, '');
+                $.post(gateway+'&do=feed_append', { id : feed_id, data : feed_data } , function(data) {
+                    alert("Saved request: "+requests);
+                    console.log(data);
+                });                                
+            }
+
+            function feed_edit(feed_id) {
+                $.get(gateway+'&do=feed_output&data_xml_feed_id='+feed_id, function(data) {
+                    var items = data.split('@@delim@@');
+
+                    var feed = items[0].split("\t");
+
+                    $('#feed_id').attr('value', feed[0]);
+                    $('#feed_by_time_id').attr('value', feed[1]);
+                    $('#feed_title').attr('value', feed[2]);
+                    $('#feed_date').attr('value', feed[3]);
+                    $('#feed_image').attr('value', feed[4]);
+                    $('#feed_type').attr('value', feed[5]);
+                    $('#feed_active').attr('value', feed[6]);
+                    $('#feed_notes').val(feed[7]);
+
+                    items.splice(0,1);
+
+                    $('#feed_content').val('');
+                    $(items).each(function(k, v) {
+                        $('#feed_content').val($('#feed_content').val()+v+"\n");
+                    });
+                });
+            }
+
+            function clear_db(){
+                if ($('#passcheck').val() == 'zzz') {
+                    $.get("http://crawler.elido.info/v003/request.php&do=clear-db", function(){});
+                }
+            }
+            
+            function menu_output() {
+                $.get(gateway+'&do=menu_output_for_edit', function(data) {
+                    $('#attr_menu').val(data);
+                });                
+            }
+
+            function menu_input() {
+                var menu_insert = new Array();
+
+                var menu = $('#attr_menu').val().split(/\r\n|\r|\n/);
+                
+                $(menu).each(function(k, attrs) {
+                    menu_insert.push(attrs);
+                });
+                
+                $.post(gateway+'&do=menu_insert', {
+                    'menu': menu_insert
+                }, function(data) {
+                    menu_output();
+                    console.log(data);
+                });  
+            }
+
+            function getdata(dbid, htmlid, proc) {
+                $.post(gateway+'&do=' + proc, { 'dbid' : dbid }, function(data) {
+                    if (data) {
+                        $(htmlid).val('');
+
+                        var rows = data.split('@@DELIM_ROWS@@');
+
+                        for (var i in rows) {
+                            var row = rows[i];
+
+                            row = row.split('@@DELIM_COLS@@');
+
+                            row = row.join("\t");
+
+                            $(htmlid).val($(htmlid).val() + row + "\n");
+                        }
+
+                        switch (htmlid) {
+                            case '#feeds':
+                                loadfeeds();
+                                break;
+                            case '#items':
+                                loaditems();
+                                break;
+                        }
+
+                        update_rows_count(htmlid, htmlid + '_count');
+                    }
+                });
+            }
+
+            function setdata(dbid, htmlid, proc) {
+                var data = $(htmlid).val();
+
+                data = data.split("\n");
+                for (var a in data) {
+                    var row = data[a];
+                
+                    row = row.split("\t");
+                    row = row.join('@@DELIM_COLS@@');
+                    
+                    data[a] = row;
+                };
+                data = data.join('@@DELIM_ROWS@@');
+                console.log(data);
+                $.post(gateway+'&do=' + proc, { 'dbid' : dbid, 'data' : data }, function(data) {
+                    console.log(data);
+                    alert('Request sent.');
+                });
+            }
+
+            function loadfeeds() {
+                var data = $('#feeds').val();
+
+                var rows = data.split("\n");
+
+                if (rows) {
+                    $('#items_select_feed').empty();
+
+                    for (var i in rows) {
+                        var row = rows[i];
+
+                        row = row.split("\t");
+
+                        $('#items_select_feed').append($('<option>').attr('value', row[0]).text(row[1]));
+                    }
+                }
+            }
+
+            function loaditems() {
+                var data = $('#items').val();
+
+                var rows = data.split("\n");
+
+                if (rows) {
+                    $('#attrs_select_item').empty();
+
+                    for (var i in rows) {
+                        var row = rows[i];
+
+                        row = row.split("\t");
+
+                        $('#attrs_select_item').append($('<option>').attr('value', row[1]).text(row[5]));
+                    }
+                }
+            }
+            
+            function get_data_string_from_textarea(htmlid) {
+                var data = $(htmlid).val();
+                
+                data = data.split("\n");
+                for (var a in data) {
+                    var row = data[a];
+                
+                    row = row.split("\t");
+                    row = row.join('@@DELIM_COLS@@');
+                    
+                    data[a] = row;
+                };
+                data = data.join('@@DELIM_ROWS@@');
+
+                return data;
+            }
+            
+            var $idown;  // Keep it outside of the function, so it's initialized once.
+            function downloadURL(url) {
+                url = 'php/download.php?fname=' + url;
+                
+                if ($idown) {
+                    $idown.attr('src',url);
+                } else {
+                    $idown = $('<iframe>', { id:'idown', src:url }).hide().appendTo('body');
+                }
+                
+                alert('CSV file has been exported.');
+            }
+            function export_csv(htmlid) {
+                var data = get_data_string_from_textarea(htmlid);
+                
+                var headers, fname;
+                
+                switch(htmlid) {
+                    case '#feeds':
+                        headers = columns.feeds;
+                        fname = 'feeds';
+                        break;
+                    case '#items':
+                        headers = columns.items;
+                        fname = 'items';
+                        break;
+                    case '#attrs':
+                        headers = columns.attrs;
+                        fname = 'attrs';
+                        break;
+                }
+                
+                data = headers.join('@@DELIM_COLS@@') + '@@DELIM_ROWS@@' + data;
+                
+                var postData = {
+                    'fname' : fname,
+                    'data' : data
+                }
+                
+                $.post('php/export.php', postData, function(url){
+                    downloadURL(url);
+                }); 
+            }
+            
+            function import_csv(htmlid, data) {
+                data = data.split(",").join("\t");
+                data = data.split("\n");
+                data.shift();
+                data = data.join("\n");
+                
+                $('#'+htmlid).val(data);
+                
+                alert('CSV file has been imported into the textrea.');
+            }
+            
+            function readBlob(htmlid) {
+                var files = document.getElementById(htmlid + '_file').files;
+                if (!files.length) {
+                    alert('Please select a file!');
+                    return;
+                }
+
+                var file = files[0];
+                var start = 0;
+                var stop = file.size - 1;
+
+                var reader = new FileReader();
+
+                // If we use onloadend, we need to check the readyState.
+                reader.onloadend = function(evt) {
+                    if (evt.target.readyState == FileReader.DONE) { // DONE == 2
+                        import_csv(htmlid, evt.target.result);
+                    }
+                };
+
+                var blob = file.slice(start, stop + 1);
+                reader.readAsBinaryString(blob);
+            }
+        </script>
+
+        <div id="loader">
+            <h3 style="color:red">Patent Pending</h3>
+            <br />
+            <input type="button" name="load_gravity" id="load_gravity" value="Load" onclick="load()" />
+            <a href="input.html" target="_blank">INPUT</a>
+            <a href="tasks.html" target="_blank">EVERYDAY REPORT</a>
+
+            <table>
+                <tr>
+                    <td valign="top" style="padding-right: 15px;">
+                        <div class="frame">
+                            <div class="headline">Feed</div>
+                            <div class="content">
+                                Search:
+                                <input type="text" name="url" id="new_url" /> (in development G0005)
+                                <br />
+                                <input type="button" name="do" value="Add Feed" onclick="add_new_url()"/>
+                                <div id="data_list"><table></table></div>
+                            </div>
+                        </div>
+                        <div class="frame">
+                            <div class="headline">Status Monitoring</div>
+                            <div class="content">
+                                <div id="status_list"><ul></ul></div><a href="#" onclick="$(this).parent().html('');">X</a>
+                            </div>
+                        </div>
+                        <div class="frame">
+                            <div class="headline">Settings</div>
+                            <div class="content">
+                                Workspace Size: <select id="size">
+                                    <option>small</option>
+                                    <option selected="selected">normal</option>
+                                    <option>big</option>
+                                </select>
+                                Touch or Mouse: <select id="touch_select">
+                                    <option value="0">Mouse</option>
+                                    <option value="1">Touch</option>
+                                </select>
+                            </div>
+                        </div>
+                    </td>
+                    <td valign="top">
+                        <div class="frame">
+                            <div class="headline">Timeline</div>
+                            <div class="content">
+                                <input type="button" value="Save" id="save_but">
+                                <input type="button" value="Load" id="load_but">
+                                <br />
+                                <textarea id="timeline_result" class="printed_on" rows="3" cols="40"></textarea>
+                            </div>
+                        </div>
+                        <div class="frame">
+                            <div class="headline">Operations</div>
+                            <div class="content">
+                                Name: <input type="text" name="" id="action_name" />
+                                Link: <input type="text" name="" id="action_cmd" />
+                                <input type="button" name="add_action" value="Add action" onclick="add_action()"/> Use [object.url] for URL.
+                                <div id="actions_list"><table></table></div>
+                                (in development G0010)
+                            </div>
+                        </div>
+                        <div class="frame">
+                            <div class="headline">Dictionary</div>
+                            <div class="content">
+                                <textarea id="attr_menu" style="width: 400px; height: 100px"></textarea>
+                                <br />
+                                <input type="button" name="add_words" value="Add Attributes" onclick="menu_input()" />
+                                <div id="words_list"><table></table></div>
+                                (in development G0044)
+                            </div>
+                        </div>
+                        <div class="frame">
+                            <div class="headline">Visualizations</div>
+                            <div class="content">
+                                <label><input type="radio" name="viz" value="1" checked="checked" /> Background: White</label>
+                                <br /><label><input type="radio" name="viz" value="2" /> Background: Black</label>
+                                <br /><label><input type="radio" name="viz" value="3" /> Background: Pink</label>
+                                <br /><label><input type="radio" name="viz" value="4" /> Background: Blue</label>
+                            </div>
+                        </div>
+
+                    </td>
+                </tr>
+            </table>
+            <div class="frame" style="width:1000px;">
+                <div class="headline" style="width:1000px;">FEEDS</div>
+                <div class="content" style="width:1000px;">
+                    <span id="feeds_count"></span>
+                    <input type="button" value="LOAD" onclick="getdata(0, '#feeds', 'getraw_feeds');" />
+                    <input type="button" value="SAVE" onclick="setdata(0, '#feeds', 'setraw_feeds');" />
+                    <input type="button" value="EXPORT CSV" onclick="export_csv('#feeds')" />
+                    <input type="file" id="feeds_file" />
+                    <input type="button" value="IMPORT CSV" onclick="readBlob('feeds')" /> (in development G0120)
+                    <textarea id="feeds" style="width:100%; height: 350px;"></textarea>
+                    <input id="feeds_fields" style="width:100%;" />
+                </div>
+            </div>
+            <div class="frame" style="width:1000px;">
+                <div class="headline" style="width:1000px;">DATA OBJECTS</div>
+                <div class="content" style="width:1000px;">
+                    <span id="items_count"></span>
+                    <select id="items_select_feed">
+                    </select>
+                    <input type="button" value="LOAD" onclick="getdata($('#items_select_feed :selected').attr('value'), '#items', 'getraw_items');" />
+                    <input type="button" value="SAVE" onclick="setdata($('#items_select_feed :selected').attr('value'), '#items', 'setraw_items');" />
+                    <input type="button" value="EXPORT CSV" onclick="export_csv('#items')" />
+                    <input type="file" id="items_file" />
+                    <input type="button" value="IMPORT CSV" onclick="readBlob('items')" /> (in development G0120)
+                    <textarea id="items" style="width:100%; height: 350px;"></textarea>
+                    <input id="items_fields" style="width:100%;" />
+                </div>
+            </div>
+            <div class="frame" style="width:1000px;">
+                <div class="headline" style="width:1000px;">ATTRIBUTES</div>
+                <div class="content" style="width:1000px;">
+                    <span id="attrs_count"></span>
+                    <select id="attrs_select_item">
+                    </select>
+                    <input type="button" value="LOAD" onclick="getdata($('#attrs_select_item :selected').attr('value'), '#attrs', 'getraw_attrs');" />
+                    <input type="button" value="SAVE" onclick="setdata($('#attrs_select_item :selected').attr('value'), '#attrs', 'setraw_attrs');" />
+                    <input type="button" value="EXPORT CSV" onclick="export_csv('#attrs')" />
+                    <input type="file" id="attrs_file" />
+                    <input type="button" value="IMPORT CSV" onclick="readBlob('attrs')" /> (in development G0120)
+                    <textarea id="attrs" style="width:100%; height: 350px;"></textarea>
+                    <input id="attrs_fields" style="width:100%;" />
+                </div>
+            </div>
+        </div>
+        <br />
+        <br />
+        <br />
+        <br />
+        <br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />
+        <br />
+        <a href="#" onclick="clear_db()" style='color:red;' target="_blank">DO NOT PRESS</a> <input type="text" value="" id="passcheck" />
+        <div id="xml" style="display:none"></div>
+    </body>
+</html>

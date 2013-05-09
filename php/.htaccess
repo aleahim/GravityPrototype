@@ -1,0 +1,4 @@
+<limit GET POST>
+Satisfy Any
+Allow from all
+</limit>

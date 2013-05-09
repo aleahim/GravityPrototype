@@ -1,0 +1,250 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
+        <script src="js/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/jquery.tmpl.js" type="text/javascript" charset="utf-8"></script>
+        <script type="text/javascript">
+            function ClearText(id) {
+                $('#'+id).attr('value' , '');
+            }
+            function show_feeds_list() {
+                $.getJSON('php/v003gateway.php?do=list', function(data) {
+                    $(data).each(function(key, val) {
+                        $('#feeds_list').prepend($('<option>').attr('value', val[0]).text(val[3] + ' - ' + val[2]));
+                    });
+                });
+            }
+            function item_insert() {
+                $('#xml').html('');
+
+                var feed_id = $('#feeds_list :selected').attr('value');
+
+                var data_id = 0;
+                var data_processed_id = 0;
+                var type = encodeURIComponent($('#item_type').attr('value')).replace(',','');
+                var image = encodeURIComponent($('#item_image').attr('value')).replace(',','');
+                var url = encodeURIComponent($('#item_url').attr('value')).replace(',','');
+                var title = encodeURIComponent($('#item_title').attr('value')).replace(',','');
+                var desc = encodeURIComponent($('#item_desc').attr('value')).replace(',','');
+
+                $.tmpl('xml_item', {
+                    "data_id": data_id,
+                    "data_processed_id": data_processed_id,
+                    "type": type,
+                    "image": image,
+                    "url": url,
+                    "title": title,
+                    "desc": desc
+                }).appendTo('#xml');
+
+                var attrs = $('#item_attrs').val();
+                if (attrs) {
+                    var attr = attrs.split(/\r\n|\r|\n/);
+                    for (var b in attr) {
+                        var attr_data = attr[b];
+
+                        if (attr_data) {
+                            $.tmpl('xml_gravity', {
+                                "name": attr_data,
+                                "value": 1,
+                                "category": 'general'
+                            }).appendTo('#xml');
+                        }
+                    }
+                }
+                var num1 = $('#item_num1').attr('value');
+                var num2 = $('#item_num2').attr('value');
+                var date = $('#item_date').attr('value');
+
+                if (num1) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'num1',
+                        "value": num1,
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+                if (num2) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'num2',
+                        "value": num2,
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+                if (date) {
+                    $.tmpl('xml_gravity', {
+                        "name": 'date',
+                        "value": date.replace(':', '.'),
+                        "category": 'system'
+                    }).appendTo('#xml');
+                }
+
+                $('#xml').html($('#xml').html()+'@');
+
+                var feed_data = $('#xml').html().replace(/\r\n|\r|\n/, '');
+                $.post('php/v003gateway.php?do=feed_append', { id : feed_id, data : feed_data } , function(data) {
+                    alert("Saved.");
+                    console.log(data);
+                });
+                $('#xml').html('');
+            }
+            function item_input_url() {
+                var url = $('#input_url').attr('value');
+
+                $.getJSON('php/v003gateway.php?do=crawl_url&url='+url, function(data) {
+                    console.log(data);
+                    $('#item_title').attr('value', data.title);
+                    $('#item_type').attr('value', data.type);
+                    $('#item_url').attr('value', data.url);
+                    $('#item_desc').attr('value', data.desc);
+                    $('#item_date').attr('value', data.date);
+                    $('#item_num1').attr('value', data.num1);
+                    $('#item_num2').attr('value', data.num2);
+
+                    var image;
+                    $('#item_images').html('');
+                    $(data.images).each(function(k, v) {
+                        if (!image) {
+                            image = v;
+                        }
+                        $('#item_images').append($('<img>').attr('src', v));
+                    });
+
+                    $('#item_image').attr('value', image);
+
+                    var attrs = data.attrs;
+                    if (attrs && attrs.length) {
+                        attrs = attrs.join("\n");
+                        $('#item_attrs').val(attrs);
+                    }
+                });
+            }
+            $(document).ready(function() {
+                $.template('xml_item', '${data_id},${data_processed_id},${type},${image},${url},${title},${desc},');
+                $.template('xml_gravity', '${name}:${value}:${category};');
+
+                show_feeds_list();
+
+                $('#input_url').bind('focusin', function() {
+                    $('#input_url').attr('value', '');
+                });
+                $('#item_image').bind('focusin', function() {
+                    $('#item_image').attr('value', '');
+                });
+            });
+        </script>
+        <link rel="stylesheet" type="text/css" href="css/css-main.css"/>
+        <style type="text/css">
+            .inut_width
+            {
+                width:350px;
+            }
+        </style>
+        <title>Gravity 2 ALPHA</title>
+    </head>
+    <body>
+        <div class="frame" style="width:1000px;">
+            <div class="headline" style="width:1000px;">Item Input</div>
+            <div class="content" style="width:1000px;">
+                <table>
+                    <tr>
+                        <td>
+                            <table style="width: 500px;">
+                                <tr>
+                                    <td>
+                                        INPUT URL
+                                    </td>
+                                    <td>
+                                        <input type="text" id="input_url" class="inut_width" value="" /><input type="button" value="LOAD" onclick="item_input_url()" /><input type="button" value="Clear" onclick="ClearText('input_url')" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">
+                                        <select id='feeds_list'></select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        TYPE
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_type" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        IMAGE
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_image" /><input type="button" value="Clear" onclick="ClearText('item_image')" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        URL
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_url" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        TITLE
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_title" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        DESC
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_desc" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        DATE
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_date" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        NUM1
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_num1" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        NUM2
+                                    </td>
+                                    <td>
+                                        <input type="text" class="inut_width"  id="item_num2" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">
+                                        <input type="button" value="INSERT" onclick="item_insert();" />
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td valign="top">
+                            ATTRS<br />
+                            <textarea id="item_attrs" cols="60" rows="10"></textarea>
+                            <br />IMAGES<br />
+                            <div id="item_images"></div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div id="xml" style="display:none"></div>
+    </body>
+</html>
